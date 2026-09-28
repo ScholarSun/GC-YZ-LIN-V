@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=77"]  # PEP 639 licence fields
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gcyz"
+dynamic = ["version"]  # read from gcyz.__version__, see [tool.setuptools.dynamic]
+description = "GC-YZ: geometry-correcting derivative-free trust-region optimisation with model hedging"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "GPL-3.0-or-later"  # PEP 639 expression; the classifier form is deprecated with it
+license-files = ["LICENSE"]
+authors = [{name = "Scholar Sun"}]
+keywords = ["derivative-free optimization", "trust region", "black-box optimization", "model-based DFO"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+dependencies = ["numpy>=1.24", "scipy>=1.10"]
+
+[project.optional-dependencies]
+# the bounded-Hessian least-squares refit of the hessian_cap option is a semidefinite program solved with
+# cvxpy; without it the linear model through Y is served when the cap fires (with a warning)
+rescue = ["cvxpy>=1.4"]
+
+[tool.setuptools]
+packages = ["gcyz"]
+
+[tool.setuptools.dynamic]
+version = {attr = "gcyz.__version__"}
