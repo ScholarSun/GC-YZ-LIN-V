@@ -46,7 +46,7 @@ print(res.x, res.fun, res.nfev, res.message)
 | `variant` | `"LIN"` (default) or `"V"` |
 | `options` | overrides of `gcyz.DEFAULT_OPTIONS` (table below) |
 | `fx0` | `f(x0)` if already known (saves one evaluation); used as given, `fun` is not called at `x0` |
-| `rng` | `numpy.random.Generator` used when `init_frame="random"` (ignored otherwise); the global NumPy state is used if omitted |
+| `rng` | `numpy.random.Generator` used when `init_frame="random"` |
 | `keep_x` | record every evaluated point in `res.info["x_history"]` |
 
 ### Result
@@ -77,7 +77,7 @@ print(res.x, res.fun, res.nfev, res.message)
 | `tr_toaccept` | 0.01 | η₁: a step is accepted if the actual decrease is at least η₁ times the predicted decrease |
 | `tr_toexpand` | 5e-9 | η₂: the gradient counts as small when ‖g‖ < η₂ Δ |
 | `tr_expand`, `tr_shrink` | 1.3, 0.8 | radius factors after an accepted / rejected step |
-| `rho_shrink`, `rhoend` | 0.1, 1e-12 | ρ is the smallest radius allowed at the moment; when the radius is at ρ and no progress is made, ρ is multiplied by `rho_shrink`, down to `rhoend`, where the run then stops |
+| `rho_shrink`, `rhoend` | 0.1, 1e-12 | ρ is the smallest radius allowed for a resolution; after a resolution is exhausted, ρ is multiplied by `rho_shrink`, down to `rhoend`, where the run then stops |
 | `small_step_gate` | 0.5 | c_g ≤ 1: a trial step shorter than c_g·ρ is not evaluated; Y is repaired if needed, otherwise the radius shrinks (0: off) |
 | `gate_far_mult` | 5 (GC-YZ-V: 0) | m: when that gate fires, a Y point farther than m·Δ is replaced first (0: off; GC-YZ-V uses `rho_advance_far_gate` instead) |
 | `sample_max` | `"2*n+1"` | total number of sample points (a number or a formula in `n`), from n + 1 to (n + 1)(n + 2)/2 |
@@ -95,15 +95,11 @@ print(res.x, res.fun, res.nfev, res.message)
 | `stop_iter` | 100000 | maximum number of iterations (the evaluation limit comes from `budget`) |
 | `verbosity` | 0 | 1 prints a line for each geometry action and the reason the run stopped |
 
-Every option is checked before the first evaluation; a value of the wrong type or outside its range raises `ValueError`.
 
 $\mathcal Y$ always holds $n$ points managed with linear Lagrange polynomials, the setting the paper analyses; all
 other points go to $\mathcal Z$. Managing $\mathcal Y$ with other Lagrange bases (for example quadratic ones) is not
 implemented. For $n \leq 5$ we recommend a full quadratic interpolation set of $\frac{(n+1)(n+2)}{2}$ points:
 `options={"sample_max": "(n+1)*(n+2)//2"}`. For $n > 5$ use the defaults ($2n + 1$ points).
-
-η₂ (`tr_toexpand`) is an absolute threshold: rescale an objective with tiny gradients instead of lowering it.
-η₂ = 0 turns the test off, and the paper's complexity guarantees then no longer hold.
 
 ## Failed evaluations
 
@@ -116,9 +112,8 @@ A returned value of exactly `1e200` or beyond counts as a failed evaluation (the
   $\mathcal Y$ left short is refilled by the next geometry repair;
 - **`f(x0)`:** the run continues from the first finite point it accepts.
 
-> **Note.** The paper's complexity analysis assumes every evaluation is finite, so it does not cover failed
-> evaluations. Beyond small tests, their effect on performance is unexplored (no evaluation in the CUTEst benchmark
-> below failed).
+> **Note.** Beyond small tests, their effect on performance is unexplored (no evaluation in the CUTEst benchmark
+> below failed). The steps above are used to keep the algorithm running (for example when objective functions get prohibitively large and yield overflow errors).
 
 <!-- cutest-n30-benchmark:start -->
 ## Benchmark: CUTEst problems with n ≥ 30
