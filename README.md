@@ -40,9 +40,9 @@ print(res.x, res.fun, res.nfev, res.message)
 
 | argument | meaning |
 |---|---|
-| `fun` | callable `f(x) -> float`, called on a copy of `x`; it must return a real number (a Python or NumPy scalar, or a one-element array), otherwise a `TypeError` is raised; NaN and +inf count as failed evaluations (see [Failed evaluations](#failed-evaluations)) |
-| `x0` | starting point, shape `(n,)` with n ≥ 1 (other shapes are flattened) |
-| `budget` | maximum number of function evaluations, including the initial sample (`f(x0)` and the design points `x0 ± Δ₀ q_i` that `sample_max` admits: `2n + 1` by default); a smaller budget raises `ValueError`; the run never evaluates past it |
+| `fun` | callable `f(x) -> float` |
+| `x0` | starting point, shape `(n,)` with n ≥ 1 |
+| `budget` | maximum number of function evaluations, including the initial sample. Values smaller than 2n+1 raises `ValueError`|
 | `variant` | `"LIN"` (default) or `"V"` |
 | `options` | overrides of `gcyz.DEFAULT_OPTIONS` (table below) |
 | `fx0` | `f(x0)` if already known (saves one evaluation); used as given, `fun` is not called at `x0` |
