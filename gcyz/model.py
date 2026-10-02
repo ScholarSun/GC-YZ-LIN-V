@@ -131,7 +131,6 @@ class Model:
         self.hedge_beta = float(options['hedge_beta'])
         self.hedge_hyst = float(options['hedge_hysteresis'])
         self.hedge_warmup = int(options['hedge_warmup'])
-        self.hedge_chain_max_err = options['hedge_chain_max_err']
         self._hedge_models = {}
         self.hedge_err = {'fresh': None, 'chain': None}
         self.hedge_scored = {'fresh': 0, 'chain': 0}
@@ -283,10 +282,6 @@ class Model:
             other = 'chain' if cur == 'fresh' else 'fresh'
             if self.hedge_err[other] < self.hedge_hyst * self.hedge_err[cur]:
                 self.hedge_active = other
-        if self.hedge_chain_max_err is not None and self.hedge_active == 'chain' and \
-                self.hedge_err['chain'] > self.hedge_chain_max_err:
-            # GC-YZ-V: use the chain only while its error is below hedge_chain_max_err
-            self.hedge_active = 'fresh'
         if self.hedge_active != prev_active:
             self.hedge_switches += 1  # counts changes of the used model
         self.hedge_picks[self.hedge_active] += 1

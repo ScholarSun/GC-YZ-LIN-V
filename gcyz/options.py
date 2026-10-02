@@ -29,7 +29,6 @@ DEFAULT_OPTIONS = {
     'hedge_hysteresis': 0.8,
     'hedge_warmup': 1,
     'hessian_cap': 1e100,
-    'hedge_chain_max_err': None,
     'mcfn_scale_reseed': 0.0,
     # --- GC-YZ-V admission and ladder guards ---
     'newuoa_admission': False,
@@ -50,7 +49,6 @@ GC_YZ_V = {
     'nwa_margin': 0.25,
     'nwa_no_discard': True,
     'mcfn_scale_reseed': 2.0,
-    'hedge_chain_max_err': 1.0,
     'rho_advance_far_gate': 10.0,
     'rho_advance_lambda_gate': 1000.0,
     'gate_far_mult': 0.0,
@@ -79,14 +77,13 @@ _RANGES = {
     'hedge_beta': (0.0, 1.0, True, True),
     'hedge_hysteresis': (0.0, math.inf, False, False),
     'hessian_cap': (0.0, math.inf, True, False),
-    'hedge_chain_max_err': (0.0, math.inf, False, True),
     'mcfn_scale_reseed': (0.0, math.inf, True, False),
     'nwa_margin': (-1.0, math.inf, False, False),
     'rho_advance_far_gate': (0.0, math.inf, True, False),
     'rho_advance_lambda_gate': (0.0, math.inf, True, True),
 }
 # Options for which None also means off.
-_NONE_MEANS_OFF = ('hessian_cap', 'hedge_chain_max_err')
+_NONE_MEANS_OFF = ('hessian_cap',)
 # Options that are 0 (off) or else at least / greater than a minimum: (minimum, minimum allowed).
 _ZERO_OR_ABOVE = {
     'gate_far_mult': (1.0, True),

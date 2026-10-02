@@ -11,7 +11,7 @@ We serve two algorithms:
 * **GC-YZ-LIN** (default) : uses linear Lagrange management of the
   interpolation set $\mathcal Y$, self-correcting geometry, a resolution ladder, and the hedged model.
 * **GC-YZ-V**: GC-YZ-LIN plus an admission test for rejected trial points, a
-  re-anchor mechanism of the least-change model, a "usefulness gate", and two guards (far distance and poisedness) before the resolution ladder advances. Note that this variant is not yet accompanied by any complexity guarantees.
+  re-anchor mechanism of the least-change model, and two guards (far distance and poisedness) before the resolution ladder advances. Note that this variant is not yet accompanied by any complexity guarantees.
 
 The methods and analysis are described in the paper: https://arxiv.org/pdf/2609.09441.
 
@@ -88,13 +88,11 @@ print(res.x, res.fun, res.nfev, res.message)
 | `model` | `"hedge"` | `"hedge"` (fit both models below and use the one that has been predicting better), `"mfn"` (smallest-Hessian fit), `"chain"` (fit closest to the previous model) |
 | `hedge_beta`, `hedge_hysteresis`, `hedge_warmup` | 0.8, 0.8, 1 | hedge: weight on past prediction errors; how much better the other model must be to switch; steps scored before switching |
 | `hessian_cap` | 1e100 | K: a model with ‖H‖ > K is refit with ‖H‖ ≤ K; if the refit fails, the linear model is used (0 or `None`: off) |
-| `hedge_chain_max_err` | (LIN: None), (V: 1.0) | use the `"chain"` model only while its prediction error is below this |
 | `mcfn_scale_reseed` | (LIN: 0), (V: 2.0) | restart the `"chain"` model when Δ has grown by this factor since it started (0: off) |
 | `newuoa_admission`, `nwa_margin`, `nwa_no_discard` | (LIN: False, 0, False), (V: True, 0.25, True) | GC-YZ-V's update after a rejected step: the trial point replaces the sample point with the largest weighted Lagrange value if that value is above 1 + margin; otherwise it goes to Z (`nwa_no_discard`) or is dropped |
 | `rho_advance_far_gate`, `rho_advance_lambda_gate` | (LIN: 0, 0), (V: 10, 1000) | before ρ is lowered: replace a Y point farther than `far_gate`·Δ, or repair Y if its poisedness is above `lambda_gate` |
 | `stop_iter` | 100000 | maximum number of iterations (the evaluation limit comes from `budget`) |
 | `verbosity` | 0 | 1 prints a line for each geometry action and the reason the run stopped |
-
 
 $\mathcal Y$ always holds $n$ points managed with linear Lagrange polynomials, the setting the paper analyses; all
 other points go to $\mathcal Z$. Managing $\mathcal Y$ with other Lagrange bases (for example quadratic ones) is not
@@ -112,7 +110,7 @@ A returned value of exactly `1e200` or beyond counts as a failed evaluation (the
   $\mathcal Y$ left short is refilled by the next geometry repair;
 - **`f(x0)`:** the run continues from the first finite point it accepts.
 
-> **Note.** Beyond small tests, their effect on performance is unexplored (no evaluation in the CUTEst benchmark
+> **Note.** Beyond small tests, the effect of failed evaluations on performance is unexplored (no evaluation in the CUTEst benchmark
 > below failed). The steps above are used to keep the algorithm running (for example when objective functions get prohibitively large and yield overflow errors).
 
 <!-- cutest-n30-benchmark:start -->
@@ -121,10 +119,10 @@ A returned value of exactly `1e200` or beyond counts as a failed evaluation (the
 ![Seed-averaged data profiles on 115 unconstrained CUTEst problems with 30 ≤ n ≤ 110](benchmarks/data_profile_cutest_n30_random_frames.png)
 
 Above are the data profiles of GC-YZ-LIN, GC-YZ-V and stock NEWUOA from the PRIMA package on 115 unconstrained CUTEst problems with dimension 30 ≤ n ≤ 110, listed in
-[`benchmarks/cutest_n30_problems.txt`](benchmarks/cutest_n30_problems.txt), averaged over four random initial frames. The x-axis counts function evaluations in units of n + 1 (simplex gradients), with n the dimension of each problem. Lines are the mean over the four frames,
+[`benchmarks/cutest_n30_problems.txt`](benchmarks/cutest_n30_problems.txt), averaged over five random initial frames. The x-axis counts function evaluations in units of n + 1 (simplex gradients), with n the dimension of each problem. Lines are the mean over the five frames,
 and the shading is the range of the curves. A curve that is up and to the left indicates better performance.
 
-Frames: for seed s = 1, …, 4 a random orthogonal matrix Q is drawn and GC-YZ starts from the design
+Frames: for seed s = 1, …, 5 a random orthogonal matrix Q is drawn and GC-YZ starts from the design
 x0 ± 0.5 q_i (`init_frame="random"`). NEWUOA's initial design is fixed to the coordinate axes, so it minimises the
 rotated problem f(x0 + Q (z − x0)) from z0 = x0, which makes its first 2n + 1 points identical to GC-YZ's.
 
@@ -133,7 +131,7 @@ Per-problem convergence plots of the same runs are in [`benchmarks/convergence/`
 ### Reproducing Results
 
 [`examples/cutest_s2mpj.py`](examples/cutest_s2mpj.py) runs both GC-YZ variants on problems from the list in one of
-the benchmark's start frames (`--seed s`, s = 1 to 4, default 1) with the benchmark settings, and prints how many
+the benchmark's start frames (`--seed s`, s = 1 to 5, default 1) with the benchmark settings, and prints how many
 simplex gradients each needed to reach each tolerance; the data profiles are built from these counts, averaged over
 the frames. The reference values f_ref of every problem and frame, and the problem sizes, are in
 [`benchmarks/cutest_n30_reference.json`](benchmarks/cutest_n30_reference.json). Stock NEWUOA is not part of this
@@ -150,14 +148,14 @@ Output of the first command on our machine with the code as committed here:
 
 ```
 start frame R1 (numpy.random.seed(1), init_frame='random'); budget 100 simplex gradients
-                                                      simplex gradients to reach tau   
+                                                      simplex gradients to reach tau
 problem         n  solver           best f  evals         1e-02       1e-04       1e-06
 WATSON         31  GC-YZ-LIN    7.0908e-05   3200          9.09       65.44       90.97   (41 s)
-WATSON         31  GC-YZ-V      7.6030e-04   3200         18.81       56.50           -   (41 s)
+WATSON         31  GC-YZ-V      1.1495e-03   3200         17.69       60.59           -   (41 s)
 BROYDN3DLS     50  GC-YZ-LIN    2.0781e-23   2333          5.53       10.25       14.71   (44 s)
-BROYDN3DLS     50  GC-YZ-V      1.0379e-22   2614          5.90       10.00       14.84   (51 s)
-ARWHEAD       100  GC-YZ-LIN    1.0325e-14   4006          4.10        7.94       10.52   (253 s)
-ARWHEAD       100  GC-YZ-V      9.1038e-15   3863          2.23        7.48       13.45   (244 s)
+BROYDN3DLS     50  GC-YZ-V      2.2915e-22   2369          5.33        9.25       13.63   (46 s)
+ARWHEAD       100  GC-YZ-LIN    1.0325e-14   4006          4.10        7.94       10.52   (257 s)
+ARWHEAD       100  GC-YZ-V      1.0658e-14   4269          2.38        9.50       12.92   (275 s)
 ```
 <!-- cutest-n30-benchmark:end -->
 

@@ -606,29 +606,38 @@ class GCYZ:
         return True, kicked_list
 
     def _reject_update_lin(self, step, f_new, failed, dup):
-        """GC-YZ-LIN, Algorithm 2: (i) the trial point replaces a Y point outside the ball; otherwise (ii) it
-        replaces the Y point whose Lagrange polynomial is large there, and (iii) a still badly poised Y is repaired
-        (one evaluation). A failed or duplicate trial point is not added. Returns (improved, the points to offer
-        to Z)."""
+        """GC-YZ-LIN, Algorithm 2, after an unsuccessful step. The trial point: a duplicate adds nothing, and a
+        failed one is offered to Z with a stand-in value; otherwise a short Y takes it, or (i) it replaces a Y point
+        outside the ball (which ends the update), or (ii) it replaces the Y point whose Lagrange polynomial is large
+        there, or else it is offered to Z. Then (iii) a still badly poised Y is repaired (one evaluation). Returns
+        (improved, the points to offer to Z)."""
         o, samp = self.options, self.samp
         kicked_list = []
-        far_idx, far_point = samp.Y.get_furthest()
-        if not (failed or dup):
-            if samp.mY < samp.n:
-                samp.Y.add_point(step, value=f_new)
-                self._log(1, "GC: Added point to Y")
-                return True, kicked_list
+        improved = False
+        L = None  # Lagrange coefficients of Y, while Y is unchanged
+        if dup:
+            pass  # the trial point is already in the sample
+        elif failed:
+            barrier = self._failed_point(step)
+            if barrier is not None:
+                kicked_list.append(barrier)
+        elif samp.mY < samp.n:
+            samp.Y.add_point(step, value=f_new)
+            self._log(1, "GC: Added point to Y")
+            return True, kicked_list
+        else:
+            L = samp.get_lagrange_coef()
+            far_idx, far_point = samp.Y.get_furthest()
             if np.linalg.norm(far_point) > self.model.delta * (1.0 + _FAR_RTOL):
                 # (i) replace the furthest Y point by the trial point; if its Lagrange polynomial is zero there
-                # (that would make Y singular), use the polynomial's maximiser over the ball instead (one evaluation)
-                L_far = samp.get_lagrange_coef()
-                l_at_s = float(np.abs(step @ L_far)[far_idx]) if np.all(np.isfinite(L_far)) else 1.0
+                # use the polynomial's maximiser over the ball instead (one evaluation)
+                l_at_s = float(np.abs(step @ L)[far_idx]) if np.all(np.isfinite(L)) else 1.0
                 if l_at_s > 0.0:
                     kicked_list.append(samp.Y[far_idx])
                     samp.Y.delete_point(far_idx)
                     samp.Y.add_point(step, value=f_new)
                 else:
-                    far_step = samp.lagrange_step_col(L_far, far_idx, self.model.delta)
+                    far_step = samp.lagrange_step_col(L, far_idx, self.model.delta)
                     kicked = self._repair_geometry(far_idx, far_step) if far_step is not None and \
                         np.all(np.isfinite(far_step)) and np.linalg.norm(far_step) > 0 else None
                     if kicked is not None:
@@ -638,31 +647,25 @@ class GCYZ:
                 self.info['gc_far_point_counter'] += 1
                 self._log(1, "GC: Replace far point")
                 return True, kicked_list
-
-        improved = False
-        L = samp.get_lagrange_coef()
-        self_corrected = False
-        if o['self_correcting'] and not (failed or dup):
-            # (ii) self-correcting swap
-            lagrange_at_s = np.abs(step @ L)
-            idx = int(np.argmax(lagrange_at_s))
-            if lagrange_at_s[idx] > o['sc_lambda']:
-                kicked_list.append(samp.Y[idx])
-                samp.Y.delete_point(idx)
-                samp.Y.add_point(step, value=f_new)
-                self_corrected = improved = True
-                self.info['gc_sc_counter'] += 1
-                self._log(1, "GC: Replace by Lagrange poly (self correcting)")
-                L = samp.get_lagrange_coef()
-        if failed and not dup:
-            barrier = self._failed_point(step)
-            if barrier is not None:
-                kicked_list.append(barrier)
-        elif not (self_corrected or dup):
-            kicked_list.append((step, f_new))  # the trial point is offered to Z
+            if o['self_correcting']:
+                # (ii) self-correcting swap
+                lagrange_at_s = np.abs(step @ L)
+                idx = int(np.argmax(lagrange_at_s))
+                if lagrange_at_s[idx] > o['sc_lambda']:
+                    kicked_list.append(samp.Y[idx])
+                    samp.Y.delete_point(idx)
+                    samp.Y.add_point(step, value=f_new)
+                    improved = True
+                    self.info['gc_sc_counter'] += 1
+                    self._log(1, "GC: Replace by Lagrange poly (self correcting)")
+                    L = None  # Y changed
+            if not improved:
+                kicked_list.append((step, f_new))  # the trial point is offered to Z
+        # (iii) repair Y if it is still badly poised
+        if L is None:
+            L = samp.get_lagrange_coef()  # a duplicate or failed point, or Y changed in (ii)
         idx, lag_step, poised_val = samp.lagrange_poisedness(L, self.model.delta)
         if poised_val > o['big_lambda']:
-            # (iii) geometry still bad: repair
             kicked = self._repair_geometry(idx, lag_step)
             if kicked is not None:
                 kicked_list += kicked
